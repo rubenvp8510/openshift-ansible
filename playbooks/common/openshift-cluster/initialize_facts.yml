@@ -107,6 +107,7 @@
       - yum-utils
       register: result
       until: result | success
+      when: item != ''
 
     - name: Ensure various deps for running system containers are installed
       package:
