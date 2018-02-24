@@ -1285,10 +1285,11 @@ def get_docker_version_info():
     """ Parses and returns the docker version info """
     result = None
     if is_service_running('docker'):
-        version_info = yaml.safe_load(get_version_output('/usr/bin/docker', 'version'))
+        json_version = get_version_output('/usr/bin/docker', ['version', '--format', '\'{{json .}}\'']).strip('\'\n')
+        version_info = json.loads(json_version)
         if 'Server' in version_info:
             result = {
-                'api_version': version_info['Server']['API version'],
+                'api_version': version_info['Server']['ApiVersion'],
                 'version': version_info['Server']['Version']
             }
     return result
