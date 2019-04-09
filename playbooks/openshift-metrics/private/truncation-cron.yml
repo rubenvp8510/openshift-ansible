@@ -1,0 +1,7 @@
+---
+- name: OpenShift Metrics Truncation CronJob
+  hosts: oo_first_master
+  tasks:
+    - import_role:
+        name: openshift_metrics
+        tasks_from: hawkular_truncation_cron

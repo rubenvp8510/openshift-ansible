@@ -1,0 +1,34 @@
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: hawkular-truncation-cron
+  labels:
+    metrics-infra: hawkular-metrics
+    name: hawkular-truncation-cron
+spec:
+  schedule: "{{ openshift_metrics_trunation_cron_schedule }}"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 5
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          concurrencyPolicy: Forbid
+          replicas: 1
+          strategy:
+            type: Recreate
+          labels:
+              metrics-infra: hawkular-metrics
+          terminationGracePeriod: 800
+          serviceAccountName: hawkular-truncation-cron
+          restartPolicy: OnFailure
+          containers:
+          - name: "hawkular-truncation-cron"
+            image: {{ openshift_metrics_trunation_cron_image }}
+            env:
+            - name: METRICS_NAMESPACE
+              value: "{{openshift_metrics_project}}"
+            - name: PARTITION_THRESHOLD
+              value: "1048576"

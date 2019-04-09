@@ -1,0 +1,20 @@
+---
+- include_tasks: create_temp_dirs.yaml
+  vars:
+    metrics_create_template_dir: True
+
+- include_tasks: install_hawkular_truncation_cron.yaml
+
+- register: cron_defs
+  slurp:
+    src: "{{ mktemp.stdout }}/templates/hawkular-truncation-cron.yaml"
+
+- include_tasks: oc_apply.yaml
+  name: "Create truncation job"
+  vars:
+    file_content: "{{ cron_defs.content | b64decode | from_yaml }}"
+    file_name: "{{ cron_defs.source }}"
+    kubeconfig: "{{ mktemp.stdout }}/admin.kubeconfig"
+    namespace: "{{ openshift_metrics_project }}"
+
+- include_tasks: cleanup.yaml

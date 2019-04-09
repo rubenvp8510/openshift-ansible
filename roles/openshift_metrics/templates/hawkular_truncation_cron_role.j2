@@ -1,0 +1,19 @@
+kind: ClusterRole
+apiVersion: v1
+metadata:
+  name: hawkular-truncation-cron
+  labels:
+    metrics-infra: hawkular-metrics
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - pods/exec
+  - replicationcontrollers
+  - replicationcontrollers/scale
+  verbs:
+  - get
+  - list
+  - create
+  - update

@@ -1,0 +1,87 @@
+---
+- name: list hawkular truncation cron
+  command: >
+    {{ openshift_client_binary }} -n {{ openshift_metrics_project }} --config={{ mktemp.stdout }}/admin.kubeconfig
+    get jobs
+  register: hawkular_crons
+
+- name: remove hawkular truncation cron
+  command: >
+    {{ openshift_client_binary }} -n {{ openshift_metrics_project }} --config={{ mktemp.stdout }}/admin.kubeconfig
+    delete cronjob hawkular-truncation-cron
+  register: delete_schema_job
+  when: "'hawkular-metrics-truncation-cron' in hawkular_crons.stdout"
+
+- name: generate hawkular truncation cron
+  template:
+    src: hawkular_truncation_cron.j2
+    dest: "{{ mktemp.stdout }}/templates/hawkular-truncation-cron.yaml"
+  changed_when: false
+
+- name: generate hawkular truncation cron cluster role binding for the hawkular service account
+  template:
+    src: rolebinding.j2
+    dest: "{{ mktemp.stdout }}/templates/hawkular-truncation-cron-rolebinding.yaml"
+  vars:
+    cluster: True
+    obj_name: hawkular-truncation-cron
+    labels:
+      metrics-infra: hawkular
+    roleRef:
+      kind: ClusterRole
+      name: hawkular-truncation-cron
+    subjects:
+      - kind: ServiceAccount
+        name: hawkular-truncation-cron
+        namespace: "{{openshift_metrics_project}}"
+  changed_when: no
+
+- name: generate the hawkular truncation cron role
+  template:
+    src: hawkular_truncation_cron_role.j2
+    dest: "{{ mktemp.stdout }}/templates/hawkular-truncation-cron-role.yaml"
+  changed_when: no
+
+- name: Set hawkular truncation cron cluster roles
+  oc_obj:
+    name: hawkular-truncation-cron
+    namespace: "{{ openshift_metrics_project }}"
+    kind: clusterrole
+    files:
+      - "{{ mktemp.stdout }}/templates/hawkular-truncation-cron-role.yaml"
+    delete_after: true
+
+- name: Generating serviceaccounts for hawkular truncation cron
+  template: src=serviceaccount.j2 dest={{mktemp.stdout}}/templates/metrics-{{obj_name}}-sa.yaml
+  vars:
+    obj_name: "{{item.name}}"
+    labels:
+      metrics-infra: support
+    secrets:
+      - hawkular-{{item.secret}}-secrets
+  with_items:
+    - name: hawkular-truncation-cron
+      secret: hawkular-truncation-cron-secrets
+  changed_when: no
+
+- name: Set serviceaccounts for hawkular truncation cron
+  oc_obj:
+    state: present
+    name: "{{ item }}"
+    kind: serviceaccount
+    namespace: "{{ openshift_metrics_project }}"
+    files:
+      - "{{ mktemp.stdout }}/templates/metrics-{{ item }}-sa.yaml"
+    delete_after: true
+  with_items:
+    - hawkular-truncation-cron
+
+- name: Set hawkular truncation cron role binding
+  oc_obj:
+    state: present
+    name: hawkular-truncation-cron
+    namespace: "{{ openshift_metrics_project }}"
+    kind: clusterrolebinding
+    files:
+      - "{{ mktemp.stdout }}/templates/hawkular-truncation-cron-rolebinding.yaml"
+    delete_after: true
